@@ -13,7 +13,6 @@ pipeline {
   }
 
   stages {
-
     stage('Checkout') {
       steps {
         git branch: 'main', url: 'https://github.com/shoaibismail18/django-k8s.git'
@@ -32,15 +31,16 @@ pipeline {
     }
 
     stage('Build and Push Docker Image') {
-      environment {
-        REGISTRY_CREDENTIALS = credentials('docker-cred')
-      }
       steps {
-        script {
-          sh 'docker build -t ${DOCKER_IMAGE} .'
-          def dockerImage = docker.image("${DOCKER_IMAGE}")
-          docker.withRegistry('https://index.docker.io/v1/', "docker-cred") {
-            dockerImage.push()
+        withCredentials([string(credentialsId: 'docker-hub-token', variable: 'DOCKER_TOKEN')]) {
+          script {
+            def dockerImage = "${DOCKER_IMAGE}"
+            sh """
+              docker build -t ${dockerImage} .
+              echo "${DOCKER_TOKEN}" | docker login -u shoaibismail18 --password-stdin
+              docker push ${dockerImage}
+              docker logout
+            """
           }
         }
       }
