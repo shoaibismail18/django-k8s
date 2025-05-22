@@ -35,9 +35,24 @@ pipeline {
       steps {
         withCredentials([string(credentialsId: 'sonarqube', variable: 'SONAR_AUTH_TOKEN')]) {
           sh '''
+            # Install Java, wget, unzip for sonar-scanner
+            apt-get update -qq && apt-get install -y openjdk-11-jre-headless wget unzip
+            
+            # Download sonar-scanner CLI
+            wget -q https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-4.8.0.2856-linux.zip
+            
+            # Unzip sonar-scanner
+            unzip -q sonar-scanner-cli-4.8.0.2856-linux.zip
+            
+            # Add sonar-scanner to PATH
+            export PATH=$PATH:$PWD/sonar-scanner-4.8.0.2856-linux/bin
+            
+            # Install coverage and run tests to generate coverage.xml
             pip install coverage
             coverage run manage.py test
             coverage xml
+            
+            # Run sonar-scanner analysis
             sonar-scanner \
               -Dsonar.projectKey=django-k8s \
               -Dsonar.sources=. \
