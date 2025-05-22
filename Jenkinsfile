@@ -1,108 +1,103 @@
 pipeline {
-  agent {
-    docker {
-      image 'python:3.10-slim'
-      args '--user root -v /var/run/docker.sock:/var/run/docker.sock'
-    }
-  }
-
-  environment {
-    DOCKER_IMAGE = "shoaibismail18/django-k8s:${BUILD_NUMBER}"
-    SONAR_URL = "http://172.26.143.43:9000"
-    GIT_REPO_NAME = "django-k8s"
-    GIT_USER_NAME = "shoaibismail18"
-  }
-
-  stages {
-
-    stage('Checkout') {
-      steps {
-        git branch: 'main', url: 'https://github.com/shoaibismail18/django-k8s.git'
-      }
-    }
-
-    stage('Install Dependencies & Test') {
-      steps {
-        sh '''
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest pytest-django
-          pytest
-        '''
-      }
-    }
-
-    stage('Static Code Analysis') {
-      steps {
-        withCredentials([string(credentialsId: 'sonarqube', variable: 'SONAR_AUTH_TOKEN')]) {
-          sh '''
-            set -e
-
-            echo "Installing dependencies in slim image..."
-            apt-get update && apt-get install -y \
-              curl \
-              unzip \
-              openjdk-17-jre-headless \
-              gnupg2 \
-              dirmngr \
-              apt-transport-https \
-              ca-certificates
-
-            echo "Installing coverage..."
-            pip install coverage
-
-            echo "Running Django tests with coverage..."
-            coverage run --source='.' manage.py test
-
-            echo "Generating coverage.xml..."
-            coverage xml
-
-            echo "Downloading Sonar Scanner..."
-            curl -sSLo sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
-
-            unzip sonar-scanner.zip
-            export PATH="$PWD/sonar-scanner-5.0.1.3006-linux/bin:$PATH"
-
-            echo "Running Sonar Scanner..."
-            sonar-scanner \
-              -Dsonar.projectKey=django-k8s \
-              -Dsonar.sources=. \
-              -Dsonar.host.url=${SONAR_URL} \
-              -Dsonar.login=$SONAR_AUTH_TOKEN \
-              -Dsonar.python.coverage.reportPaths=coverage.xml
-          '''
+    agent {
+        docker {
+            image 'python:3.9-slim'
+            args '-u root -v /var/run/docker.sock:/var/run/docker.sock'
         }
-      }
     }
-
-    stage('Build and Push Docker Image') {
-      environment {
-        REGISTRY_CREDENTIALS = credentials('docker-cred')
-      }
-      steps {
-        script {
-          sh 'docker build -t ${DOCKER_IMAGE} .'
-          def dockerImage = docker.image("${DOCKER_IMAGE}")
-          docker.withRegistry('https://index.docker.io/v1/', "docker-cred") {
-            dockerImage.push()
-          }
+    
+    environment {
+        SONAR_HOST_URL = "http://172.26.143.43:9000"
+        DOCKER_REGISTRY = "your-docker-registry"
+    }
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                git branch: 'main', 
+                url: 'https://github.com/your-org/django-app.git',
+                credentialsId: 'github'
+            }
         }
-      }
-    }
 
-    stage('Update Deployment File') {
-      steps {
-        withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
-          sh '''
-            git config user.email "shoaib@example.com"
-            git config user.name "Shoaib Ismail"
-            sed -i "s/replaceImageTag/${BUILD_NUMBER}/g" k8s/deployment.yml
-            git add k8s/deployment.yml
-            git commit -m "Update deployment image to version ${BUILD_NUMBER}" || echo "No changes to commit"
-            git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME} HEAD:main
-          '''
+        stage('Install Dependencies') {
+            steps {
+                sh '''
+                apt-get update && apt-get install -y curl unzip
+                pip install --upgrade pip
+                pip install -r requirements.txt
+                pip install coverage
+                '''
+            }
         }
-      }
+
+        stage('Run Tests with Coverage') {
+            steps {
+                sh '''
+                coverage run --source=. manage.py test
+                coverage xml
+                '''
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            environment {
+                SCANNER_VERSION = "5.0.1.3006"
+            }
+            steps {
+                withCredentials([string(credentialsId: 'sonarqube', variable: 'SONAR_TOKEN']) {
+                    sh '''
+                    # Install SonarScanner with Node.js dependency
+                    curl -sSLo sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-${SCANNER_VERSION}-linux.zip
+                    unzip -q sonar-scanner.zip
+                    rm sonar-scanner.zip
+                    
+                    # Install Node.js for JavaScript analysis
+                    curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+                    apt-get install -y nodejs
+
+                    # Run SonarScanner with correct parameters
+                    ./sonar-scanner-${SCANNER_VERSION}-linux/bin/sonar-scanner \
+                      -Dsonar.projectKey=django-k8s \
+                      -Dsonar.sources=. \
+                      -Dsonar.host.url=${SONAR_HOST_URL} \
+                      -Dsonar.token=${SONAR_TOKEN} \
+                      -Dsonar.coverageReportPaths=coverage.xml \
+                      -Dsonar.exclusions=**/sonar-scanner-*,**/*.zip,**/jre/**/*
+                    '''
+                }
+            }
+        }
+
+        stage('Build and Push Docker Image') {
+            environment {
+                DOCKER_IMAGE = "${env.DOCKER_REGISTRY}/django-app:${env.BUILD_NUMBER}"
+            }
+            steps {
+                script {
+                    docker.build("${env.DOCKER_IMAGE}") {
+                        sh '''
+                        python manage.py collectstatic --noinput
+                        python manage.py migrate
+                        '''
+                    }
+                    docker.withRegistry("https://${env.DOCKER_REGISTRY}", 'docker-creds') {
+                        docker.image("${env.DOCKER_IMAGE}").push()
+                    }
+                }
+            }
+        }
     }
-  }
+    
+    post {
+        always {
+            sh 'docker system prune -f'
+            cleanWs()
+        }
+        failure {
+            slackSend channel: '#build-errors',
+                     color: 'danger',
+                     message: "Build Failed: ${env.JOB_NAME} #${env.BUILD_NUMBER}"
+        }
+    }
 }
