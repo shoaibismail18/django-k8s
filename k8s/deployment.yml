@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: django-k8s
+  labels:
+    app: django-k8s
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: django-k8s
+  template:
+    metadata:
+      labels:
+        app: django-k8s
+    spec:
+      containers:
+      - name: django-k8s
+        image: shoaibismail18/django-k8s:replaceImageTag
+        ports:
+        - containerPort: 8000
