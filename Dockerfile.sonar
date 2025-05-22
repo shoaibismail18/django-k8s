@@ -1,0 +1,10 @@
+FROM openjdk:11-jre-slim
+
+RUN apt-get update && apt-get install -y wget unzip && rm -rf /var/lib/apt/lists/*
+
+RUN wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-4.8.0.2856-linux.zip \
+  && unzip sonar-scanner-cli-4.8.0.2856-linux.zip \
+  && mv sonar-scanner-4.8.0.2856-linux /opt/sonar-scanner \
+  && rm sonar-scanner-cli-4.8.0.2856-linux.zip
+
+ENV PATH="/opt/sonar-scanner/bin:${PATH}"
