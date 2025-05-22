@@ -46,12 +46,12 @@ pipeline {
         stage('Update Deployment File') {
             steps {
                 sh '''
-                    if [ -f k8s/deployment.yaml ]; then
-                        sed -i 's|image: shoaibismail18/django-k8s:.*|image: ${DOCKER_IMAGE}|' k8s/deployment.yaml
-                        echo "Updated k8s/deployment.yaml:"
-                        cat k8s/deployment.yaml
+                    if [ -f k8s/deployment.yml ]; then
+                        sed -i 's|image: shoaibismail18/django-k8s:.*|image: ${DOCKER_IMAGE}|' k8s/deployment.yml
+                        echo "Updated k8s/deployment.yml:"
+                        cat k8s/deployment.yml
                     else
-                        echo "ERROR: k8s/deployment.yaml not found!"
+                        echo "ERROR: k8s/deployment.yml not found!"
                         exit 1
                     fi
                 '''
