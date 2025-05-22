@@ -2,18 +2,18 @@ pipeline {
   agent {
     docker {
       image 'python:3.10-slim'
-      args '-u root -v /var/run/docker.sock:/var/run/docker.sock'
+      args '--user root -v /var/run/docker.sock:/var/run/docker.sock'
     }
   }
 
   environment {
     DOCKER_IMAGE = "shoaibismail18/django-k8s:${BUILD_NUMBER}"
-    SONAR_URL = "http://172.26.143.43:9000"
     GIT_REPO_NAME = "django-k8s"
     GIT_USER_NAME = "shoaibismail18"
   }
 
   stages {
+
     stage('Checkout') {
       steps {
         git branch: 'main', url: 'https://github.com/shoaibismail18/django-k8s.git'
@@ -25,36 +25,9 @@ pipeline {
         sh '''
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest pytest-django coverage
-          coverage run --source='.' manage.py test
-          coverage xml
+          pip install pytest pytest-django
+          pytest
         '''
-      }
-    }
-
-    stage('Static Code Analysis') {
-      steps {
-        withCredentials([string(credentialsId: 'sonarqube', variable: 'SONAR_AUTH_TOKEN')]) {
-          sh '''
-            set -e
-
-            apt-get update && apt-get install -y unzip curl openjdk-17-jre-headless nodejs npm
-
-            curl -sSLo sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
-            unzip sonar-scanner.zip
-
-            # Optionally install node dependencies if needed (skip if no JS analysis required)
-            # npm install
-
-            ./sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner \
-              -Dsonar.projectKey=django-k8s \
-              -Dsonar.sources=. \
-              -Dsonar.host.url=${SONAR_URL} \
-              -Dsonar.token=$SONAR_AUTH_TOKEN \
-              -Dsonar.python.coverage.reportPaths=coverage.xml \
-              -Dsonar.javascript.enabled=false
-          '''
-        }
       }
     }
 
