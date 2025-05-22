@@ -2,7 +2,7 @@ pipeline {
   agent {
     docker {
       image 'python:3.10-slim'
-      args '--user root -v /var/run/docker.sock:/var/run/docker.sock'
+      args '-u root -v /var/run/docker.sock:/var/run/docker.sock'
     }
   }
 
@@ -14,7 +14,6 @@ pipeline {
   }
 
   stages {
-
     stage('Checkout') {
       steps {
         git branch: 'main', url: 'https://github.com/shoaibismail18/django-k8s.git'
@@ -26,8 +25,9 @@ pipeline {
         sh '''
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest pytest-django
-          pytest
+          pip install pytest pytest-django coverage
+          coverage run --source='.' manage.py test
+          coverage xml
         '''
       }
     }
@@ -38,38 +38,21 @@ pipeline {
           sh '''
             set -e
 
-            echo "Installing dependencies in slim image..."
-            apt-get update && apt-get install -y \
-              curl \
-              unzip \
-              openjdk-17-jre-headless \
-              gnupg2 \
-              dirmngr \
-              apt-transport-https \
-              ca-certificates
+            apt-get update && apt-get install -y unzip curl openjdk-17-jre-headless nodejs npm
 
-            echo "Installing coverage..."
-            pip install coverage
-
-            echo "Running Django tests with coverage..."
-            coverage run --source='.' manage.py test
-
-            echo "Generating coverage.xml..."
-            coverage xml
-
-            echo "Downloading Sonar Scanner..."
             curl -sSLo sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
-
             unzip sonar-scanner.zip
-            export PATH="$PWD/sonar-scanner-5.0.1.3006-linux/bin:$PATH"
 
-            echo "Running Sonar Scanner..."
-            sonar-scanner \
+            # Optionally install node dependencies if needed (skip if no JS analysis required)
+            # npm install
+
+            ./sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner \
               -Dsonar.projectKey=django-k8s \
               -Dsonar.sources=. \
               -Dsonar.host.url=${SONAR_URL} \
-              -Dsonar.login=$SONAR_AUTH_TOKEN \
-              -Dsonar.python.coverage.reportPaths=coverage.xml
+              -Dsonar.token=$SONAR_AUTH_TOKEN \
+              -Dsonar.python.coverage.reportPaths=coverage.xml \
+              -Dsonar.javascript.enabled=false
           '''
         }
       }
