@@ -1,0 +1,15 @@
+version: '3.9'
+
+services:
+  web:
+    build: .
+    container_name: django_static_site
+    ports:
+      - "8000:8000"
+    environment:
+      DJANGO_SETTINGS_MODULE: django_k8s.settings
+    volumes:
+      - .:/app
+    command: >
+      sh -c "python manage.py collectstatic --noinput &&
+             gunicorn django_k8s.wsgi:application --bind 0.0.0.0:8000"
