@@ -3,8 +3,6 @@ pipeline {
 
     environment {
         DOCKER_IMAGE = "shoaibismail18/django-k8s:17"
-        DOCKER_CREDENTIALS_ID = 'dockerhub-credentials-id'  // replace with your Jenkins Docker credentials ID
-        GIT_CREDENTIALS_ID = 'GitHub_credentials'           // your GitHub credentials ID
     }
 
     stages {
@@ -14,7 +12,7 @@ pipeline {
                     branches: [[name: 'main']],
                     userRemoteConfigs: [[
                         url: 'https://github.com/shoaibismail18/django-k8s',
-                        credentialsId: "${GIT_CREDENTIALS_ID}"
+                        credentialsId: 'GitHub_credentials'
                     ]]
                 ])
             }
@@ -23,7 +21,7 @@ pipeline {
         stage('Install Dependencies & Test') {
             steps {
                 script {
-                    docker.image('python:3.10-slim').inside {
+                    docker.image('python:3.10-slim').inside('-u root') {
                         sh 'python -m pip install --upgrade pip'
                         sh 'pip install -r requirements.txt pytest pytest-django'
                         sh 'pytest'
@@ -34,7 +32,7 @@ pipeline {
 
         stage('Build and Push Docker Image') {
             steps {
-                withCredentials([usernamePassword(credentialsId: "${DOCKER_CREDENTIALS_ID}", usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                withCredentials([usernamePassword(credentialsId: 'docker-hub-token', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                     sh '''
                         echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
                         docker build -t ${DOCKER_IMAGE} .
@@ -47,15 +45,16 @@ pipeline {
 
         stage('Update Deployment File') {
             steps {
-                // Checkout again to ensure deployment.yaml is present
-                checkout scm
-
-                sh """
-                   sed -i 's|image: shoaibismail18/django-k8s:.*|image: ${DOCKER_IMAGE}|' deployment.yaml
-                """
-
-                // Optional: show updated deployment.yaml contents
-                sh 'cat deployment.yaml'
+                sh '''
+                    if [ -f deployment.yaml ]; then
+                        sed -i 's|image: shoaibismail18/django-k8s:.*|image: ${DOCKER_IMAGE}|' deployment.yaml
+                        echo "Updated deployment.yaml:"
+                        cat deployment.yaml
+                    else
+                        echo "ERROR: deployment.yaml not found!"
+                        exit 1
+                    fi
+                '''
             }
         }
     }
