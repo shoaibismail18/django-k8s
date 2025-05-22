@@ -33,19 +33,37 @@ pipeline {
     }
 
     stage('Static Code Analysis') {
-      agent {
-        docker {
-          image 'shoaibismail18/sonar-scanner:latest'
-          args '--user root'
-        }
-      }
       steps {
         withCredentials([string(credentialsId: 'sonarqube', variable: 'SONAR_AUTH_TOKEN')]) {
           sh '''
+            set -e
+
+            echo "Installing dependencies in slim image..."
+            apt-get update && apt-get install -y \
+              curl \
+              unzip \
+              openjdk-17-jre-headless \
+              gnupg2 \
+              dirmngr \
+              apt-transport-https \
+              ca-certificates
+
+            echo "Installing coverage..."
             pip install coverage
-            coverage run manage.py test
+
+            echo "Running Django tests with coverage..."
+            coverage run --source='.' manage.py test
+
+            echo "Generating coverage.xml..."
             coverage xml
 
+            echo "Downloading Sonar Scanner..."
+            curl -sSLo sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
+
+            unzip sonar-scanner.zip
+            export PATH="$PWD/sonar-scanner-5.0.1.3006-linux/bin:$PATH"
+
+            echo "Running Sonar Scanner..."
             sonar-scanner \
               -Dsonar.projectKey=django-k8s \
               -Dsonar.sources=. \
