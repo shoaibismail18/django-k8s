@@ -47,7 +47,7 @@ pipeline {
             steps {
                 sh '''
                     if [ -f k8s/deployment.yml ]; then
-                        sed -i 's|image: shoaibismail18/django-k8s:.*|image: ${DOCKER_IMAGE}|' k8s/deployment.yml
+                        sed -i "s|image: shoaibismail18/django-k8s:.*|image: ${DOCKER_IMAGE}|" k8s/deployment.yml
                         echo "Updated k8s/deployment.yml:"
                         cat k8s/deployment.yml
                     else
@@ -57,5 +57,5 @@ pipeline {
                 '''
             }
         }
-    } // <-- End of stages
-} // <-- End of pipeline
+    }
+}
