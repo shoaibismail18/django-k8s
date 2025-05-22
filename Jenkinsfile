@@ -14,6 +14,7 @@ pipeline {
   }
 
   stages {
+
     stage('Checkout') {
       steps {
         git branch: 'main', url: 'https://github.com/shoaibismail18/django-k8s.git'
@@ -79,7 +80,7 @@ pipeline {
             git config user.name "Shoaib Ismail"
             sed -i "s/replaceImageTag/${BUILD_NUMBER}/g" k8s/deployment.yml
             git add k8s/deployment.yml
-            git commit -m "Update deployment image to version ${BUILD_NUMBER}"
+            git commit -m "Update deployment image to version ${BUILD_NUMBER}" || echo "No changes to commit"
             git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME} HEAD:main
           '''
         }
