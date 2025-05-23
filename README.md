@@ -25,23 +25,4 @@ This project uses **Jenkins** for continuous integration and **Argo CD** for con
   - Argo CD installed and connected to the GitHub repository.
   - Configured Ingress and Ingress Controller (LoadBalancer type).
 
-  ```mermaid
-graph LR
-    A[Checkout Code] --> B[Install Dependencies]
-    B --> C[Run Tests]
-    C --> D[Build Docker Image]
-    D --> E[Push to Docker Hub]
-    E --> F[Update Deployment Manifest]
-    F --> G[Git Commit/Push]
-    G --> H[Argo CD Sync]
-    H --> I[(Kubernetes Cluster)]
-    
-    subgraph Cluster
-        I --> J[Deployment]
-        J --> K[Pods]
-        J --> L[Services]
-        L --> M[LoadBalancer]
-        J --> N[Ingress]
-        N --> O((End Users))
-    end
-```
+![alt text](image.png)
