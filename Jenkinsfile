@@ -3,7 +3,6 @@ pipeline {
 
     environment {
         DOCKER_IMAGE = "shoaibismail18/django-k8s:17"
-        SONAR_PROJECT_KEY = "django-k8s"
     }
 
     stages {
@@ -19,35 +18,13 @@ pipeline {
             }
         }
 
-        stage('Install Dependencies, Test & Coverage') {
+        stage('Install Dependencies & Test') {
             steps {
                 script {
                     docker.image('python:3.10-slim').inside('-u root') {
-                        sh '''
-                            python -m pip install --upgrade pip
-                            pip install -r requirements.txt pytest pytest-django coverage
-                            coverage run -m pytest
-                            coverage xml
-                        '''
-                    }
-                }
-            }
-        }
-
-        stage('SonarQube Analysis') {
-            steps {
-                withSonarQubeEnv('SonarQube') {
-                    script {
-                        docker.image('python:3.10-slim').inside('-u root') {
-                            sh """
-                                python -m pip install --upgrade pip
-                                pip install sonar-scanner
-                                sonar-scanner \
-                                    -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                                    -Dsonar.sources=. \
-                                    -Dsonar.python.coverage.reportPaths=coverage.xml
-                            """
-                        }
+                        sh 'python -m pip install --upgrade pip'
+                        sh 'pip install -r requirements.txt pytest pytest-django'
+                        sh 'pytest'
                     }
                 }
             }
