@@ -1,4 +1,4 @@
-## Continuous Integration and Deployment (CI/CD)
+## Continuous Integration and Deployment (CI/CD) for a python Django based website 
 
 This project uses **Jenkins** for continuous integration and **Argo CD** for continuous deployment, following this workflow:
 
