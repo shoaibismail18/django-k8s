@@ -23,9 +23,25 @@ pipeline {
                 script {
                     docker.image('python:3.10-slim').inside('-u root') {
                         sh 'python -m pip install --upgrade pip'
-                        sh 'pip install -r requirements.txt pytest pytest-django'
-                        sh 'pytest'
+                        sh 'pip install -r requirements.txt pytest pytest-django coverage'
+                        sh 'mkdir -p test-reports'
+                        // Run tests with coverage and generate reports
+                        sh 'coverage run -m pytest --junitxml=test-reports/results.xml'
+                        sh 'coverage xml -o coverage.xml'
                     }
+                }
+            }
+            post {
+                always {
+                    junit 'test-reports/results.xml'
+                }
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('SonarQubeWSL') {
+                    sh 'sonar-scanner'
                 }
             }
         }
