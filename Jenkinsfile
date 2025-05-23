@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = "shoaibismail18/django-k8s:17"
+        DOCKER_IMAGE = "shoaibismail18/django-k8s:${BUILD_NUMBER}"
     }
 
     stages {
@@ -44,17 +44,22 @@ pipeline {
         }
 
         stage('Update Deployment File') {
+            environment {
+                GIT_REPO_NAME = "django-k8s"
+                GIT_USER_NAME = "shoaibismail18"
+            }
             steps {
-                sh '''
-                    if [ -f k8s/deployment.yml ]; then
-                        sed -i "s|image: shoaibismail18/django-k8s:.*|image: ${DOCKER_IMAGE}|" k8s/deployment.yml
-                        echo "Updated k8s/deployment.yml:"
-                        cat k8s/deployment.yml
-                    else
-                        echo "ERROR: k8s/deployment.yml not found!"
-                        exit 1
-                    fi
-                '''
+                withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
+                    sh '''
+                        git config user.email "shoaibismail18@gmail.com"
+                        git config user.name "Shoaib Ismail"
+                        git checkout main
+                        sed -i "s/replaceImageTag/${BUILD_NUMBER}/g" k8s/deployment.yml
+                        git add k8s/deployment.yml
+                        git commit -m "Update deployment image to version ${BUILD_NUMBER}" || echo "No changes to commit"
+                        git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME}.git HEAD:main
+                    '''
+                }
             }
         }
     }
