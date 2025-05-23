@@ -3,6 +3,7 @@ pipeline {
 
     environment {
         DOCKER_IMAGE = "shoaibismail18/django-k8s:17"
+        SONAR_PROJECT_KEY = "django-k8s"
     }
 
     stages {
@@ -18,30 +19,36 @@ pipeline {
             }
         }
 
-        stage('Install Dependencies & Test') {
+        stage('Install Dependencies, Test & Coverage') {
             steps {
                 script {
                     docker.image('python:3.10-slim').inside('-u root') {
-                        sh 'python -m pip install --upgrade pip'
-                        sh 'pip install -r requirements.txt pytest pytest-django coverage'
-                        sh 'mkdir -p test-reports'
-                        // Run tests with coverage and generate reports
-                        sh 'coverage run -m pytest --junitxml=test-reports/results.xml'
-                        sh 'coverage xml -o coverage.xml'
+                        sh '''
+                            python -m pip install --upgrade pip
+                            pip install -r requirements.txt pytest pytest-django coverage
+                            coverage run -m pytest
+                            coverage xml
+                        '''
                     }
-                }
-            }
-            post {
-                always {
-                    junit 'test-reports/results.xml'
                 }
             }
         }
 
         stage('SonarQube Analysis') {
             steps {
-                withSonarQubeEnv('SonarQubeWSL') {
-                    sh 'sonar-scanner'
+                withSonarQubeEnv('SonarQube') {
+                    script {
+                        docker.image('python:3.10-slim').inside('-u root') {
+                            sh """
+                                python -m pip install --upgrade pip
+                                pip install sonar-scanner
+                                sonar-scanner \
+                                    -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                                    -Dsonar.sources=. \
+                                    -Dsonar.python.coverage.reportPaths=coverage.xml
+                            """
+                        }
+                    }
                 }
             }
         }
