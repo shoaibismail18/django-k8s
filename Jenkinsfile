@@ -30,6 +30,21 @@ pipeline {
             }
         }
 
+        stage('SonarQube Analysis') {
+            environment {
+                SONAR_SCANNER_OPTS = "-Dsonar.projectKey=django-k8s \
+                                      -Dsonar.sources=. \
+                                      -Dsonar.python.version=3.10"
+            }
+            steps {
+                withSonarQubeEnv('MySonarQubeServer') {
+                    withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+                        sh 'sonar-scanner -Dsonar.login=$SONAR_TOKEN $SONAR_SCANNER_OPTS'
+                    }
+                }
+            }
+        }
+
         stage('Build and Push Docker Image') {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'docker-django-k8s', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
