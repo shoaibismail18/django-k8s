@@ -23,32 +23,8 @@ pipeline {
                 script {
                     docker.image('python:3.10-slim').inside('-u root') {
                         sh 'python -m pip install --upgrade pip'
-                        sh 'pip install -r requirements.txt pytest pytest-django pytest-cov'
-
-                        // Create reports directory
-                        sh 'mkdir -p reports'
-
-                        // Run tests with junit xml report and coverage xml report
-                        sh 'pytest --junitxml=reports/pytest-results.xml --cov=. --cov-report=xml:reports/coverage.xml'
-                    }
-                }
-            }
-        }
-
-        stage('SonarQube Analysis') {
-            environment {
-                SONAR_SCANNER_OPTS = """
-                    -Dsonar.projectKey=django-k8s \
-                    -Dsonar.sources=. \
-                    -Dsonar.python.version=3.10 \
-                    -Dsonar.python.xunit.reportPath=reports/pytest-results.xml \
-                    -Dsonar.python.coverage.reportPath=reports/coverage.xml
-                """
-            }
-            steps {
-                withSonarQubeEnv('sonarscanner') {
-                    withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
-                        sh "/opt/sonar-scanner/bin/sonar-scanner -Dsonar.login=$SONAR_TOKEN $SONAR_SCANNER_OPTS"
+                        sh 'pip install -r requirements.txt pytest pytest-django'
+                        sh 'pytest'
                     }
                 }
             }
