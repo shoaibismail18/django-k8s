@@ -57,5 +57,19 @@ pipeline {
                 '''
             }
         }
+
+        stage('Commit and Push Changes') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'GitHub_credentials', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_PASS')]) {
+                    sh '''
+                        git config user.email "jenkins@yourdomain.com"
+                        git config user.name "Jenkins CI"
+                        git add k8s/deployment.yml
+                        git commit -m "Update image tag to ${DOCKER_IMAGE}" || echo "No changes to commit"
+                        git push https://${GIT_USER}:${GIT_PASS}@github.com/shoaibismail18/django-k8s.git main
+                    '''
+                }
+            }
+        }
     }
 }
